@@ -17,7 +17,7 @@ function encodeGeohash(lat, lng, precision = 5){
     let minLat = -90, maxLat = 90;
     let minLng = -180, maxLng = 180;
 
-    while(geohash.length < prescision){
+    while(geohash.length < precision){
         if(evenBit){
             const midLng = (minLng + maxLng) / 2;
             if(lng >= midLng){ idx = (idx << 1) | 1; minLng = midLng; }
