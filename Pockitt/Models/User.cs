@@ -28,5 +28,6 @@ public class User
     public NameColor UserNameColor { get; set; } = NameColor.Default;
     public double Latitude { get; set; }
     public double Longitude { get; set; }
+    public string Geohash { get; set; } = string.Empty;
     public string RoomId { get; set; } = string.Empty;
 }

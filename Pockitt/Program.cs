@@ -7,9 +7,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<RoomService>();
 builder.Services.AddSignalR();
 
-// builder.Services.AddSingleton<SessionService>();
-// builder.Services.AddMemoryCache();
-
 var app = builder.Build();
 
 // Serves static files from wwwroot/
