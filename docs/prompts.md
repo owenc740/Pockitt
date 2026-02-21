@@ -31,4 +31,12 @@ Pockitt/ ├── Hubs/ ← SignalR hub (real-time chat logic) ├── Models
 
 ---
 
+### [2026-02-21] Pockitt Product & Engineering Backlog
+
+**Summary:** Generated `docs/backlog.md` — a full agile planning document for Pockitt V1. Includes a folder structure analysis of the scaffolded `Pockitt/` project (flagging that `Room` and `User` models store raw lat/lng in violation of the geohash-only design, and that `Hubs/`, `Services/`, `wwwroot/` are not yet created). Defined 7 epics (Foundation, Identity, Real-Time, Geospatial, Chat UI, Drawing Tool, Security/Hardening) derived from `architecture-spec.md`. Wrote 28 user stories with acceptance criteria and story points (Fibonacci scale). Organized into 4 two-week sprints for a 6-person team (TL, BE1, BE2, FE1, FE2, QA) with ~38 SP/sprint and per-sprint definitions of done. Testing backlog covers 14 unit tests, 10 integration tests, 6 E2E scenarios, 8 security tests, 4 performance benchmarks, and 6 browser/device test cases.
+
+**Prompt:** Polish and improve the next prompt act as the worlds leading tech entrepreneur out of silicon valley. use the architecture-spec.md file to create user epics, stories, sprints and testing backlog.md file. Design this for a team of 5 to 8 software engineers. Also analyze the new folder and folder structure within Pockitt.
+
+---
+
 <!-- New prompts below -->
