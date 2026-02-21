@@ -4,6 +4,6 @@
   "features": {
     "ghcr.io/stu-bell/devcontainer-features/node:0": {}
   },
-  "forwardPorts": [5000, 5001],
-  "postCreateCommand": "npm install typescript tailwindcss@3 @microsoft/signalr"
+  "forwardPorts": [5173, 5290],
+  "postCreateCommand": "npm install"
 }
