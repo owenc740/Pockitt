@@ -1,14 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES6",
-    "module": "ES6",
+    "target": "ES2020",
+    "module": "ES2020",
     "moduleResolution": "bundler",
     "strict": true,
-    "outDir": "./Pockitt/wwwroot/js",
-    "rootDir": "./Pockitt/wwwroot/js",
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
   },
-  "include": ["Pockitt/wwwroot/js/**/*.ts"],
+  "include": ["Pockitt/wwwroot/js/**/*.ts", "vite.config.ts"],
   "exclude": ["node_modules"]
 }

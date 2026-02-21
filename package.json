@@ -1,11 +1,17 @@
 {
+  "name": "pockitt",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
   "dependencies": {
     "@microsoft/signalr": "^10.0.0",
-    "tailwindcss": "^3.4.19",
-    "typescript": "^5.9.3"
+    "tailwindcss": "^3.4.19"
   },
-"scripts": {
-    "build": "node ./node_modules/typescript/bin/tsc",
-    "watch": "node ./node_modules/typescript/bin/tsc --watch"
-}
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^6.0.0"
+  }
 }
