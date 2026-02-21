@@ -13,8 +13,8 @@
 | Role | ID | Responsibilities |
 |------|----|-----------------|
 | Tech Lead | TL | Architecture, code review, unblocking the team |
-| Backend Engineer 1 | BE1 | SignalR hub, RoomEngine, session service |
-| Backend Engineer 2 | BE2 | Message buffer, rate limiting, security middleware |
+| Backend Engineer 1 | BE1 | SignalR hub (RoomAssignHub), RoomService, session logic |
+| Backend Engineer 2 | BE2 | Rate limiting, security middleware, message buffer |
 | Frontend Engineer 1 | FE1 | Chat UI, SignalR client, session identity |
 | Frontend Engineer 2 | FE2 | Canvas drawing tool, geolocation/geohash client |
 | QA Engineer | QA | Test planning, integration & E2E tests, bug triage |
@@ -24,23 +24,27 @@
 
 ## Folder Structure Analysis
 
-Current state of `/Pockitt` as of Sprint 0:
+Current state of `/Pockitt` as of Sprint 1 (in progress):
 
 | Path | Status | Notes |
 |------|--------|-------|
-| `Models/Message.cs` | ✅ Scaffolded | `MessageType` enum (Text/Drawing) — aligns with spec |
-| `Models/Room.cs` | ⚠️ Needs refactor | Stores raw `Latitude`/`Longitude` — spec requires geohash-only room ID; raw coords must never reach the server |
-| `Models/User.cs` | ⚠️ Needs refactor | Stores raw `Latitude`/`Longitude` — same privacy concern |
-| `Program.cs` | ❌ Stub only | No SignalR, no `UseStaticFiles`, no `IMemoryCache` — bare `Hello World` |
-| `Pockitt.csproj` | ⚠️ Review | Targets `.NET 10.0`; spec references `.NET 8.0` — align spec or csproj |
-| `Hubs/` | ❌ Not created | `PockittHub.cs` needed |
-| `Services/` | ❌ Not created | `RoomEngine.cs`, `SessionService.cs`, `MessageBuffer.cs` needed |
-| `wwwroot/` | ❌ Not created | `index.html`, `css/site.css`, `js/` needed |
+| `Models/Message.cs` | ✅ Complete | `MessageType` enum (Text/Art/Game); `Username`, `Content`, `Timestamp`, `Type` |
+| `Models/Room.cs` | ✅ Complete | Stores `Geohash` — raw coordinates removed |
+| `Models/User.cs` | ✅ Complete | Stores `Geohash`, `SessionToken` — raw coordinates removed |
+| `Program.cs` | ✅ Complete | SignalR, `RoomService`, `UseDefaultFiles`, `UseStaticFiles`, `MapHub<RoomAssignHub>("/hub")` |
+| `Pockitt.csproj` | ✅ Aligned | Targets `.NET 10.0`; spec updated to match |
+| `Hubs/RoomAssignHub.cs` | ✅ Complete | `Join`, `SendMessage`, `SendArt`, session reconnect, 5-min disconnect grace period |
+| `Services/RoomService.cs` | ✅ Complete | Geohash decode + Haversine proximity matching (0.062mi threshold) + fallback |
+| `wwwroot/js/geo.js` | ✅ Complete | `getGeoHash()` — browser geolocation → precision-5 geohash |
+| `wwwroot/js/app.ts` | ⚠️ Placeholder | Empty — needs SignalR wiring, session logic, hub calls |
+| `wwwroot/index.html` | ⚠️ Placeholder | Empty — needs full HTML structure and script tags |
+| `wwwroot/css/style.css` | ⚠️ Placeholder | Empty — needs Tailwind compilation |
 
-**Key gaps to close before feature work begins:**
-1. Refactor `Room` + `User` — remove raw coordinates; key rooms by geohash string
-2. Bootstrap `Program.cs` — register SignalR, `IMemoryCache`, static files middleware
-3. Create `Hubs/`, `Services/`, `wwwroot/` with placeholder files
+**Remaining gaps before Sprint 1 complete:**
+1. Populate `index.html` — HTML structure, Tailwind link, `<script type="module" src="/js/app.js">`
+2. Implement `app.ts` — import `getGeoHash`, connect to `/hub`, call `Join`, handle `RoomJoined`/`ReceiveMessage`
+3. Compile Tailwind → `style.css`
+4. Docker container build and run
 
 ---
 
@@ -64,29 +68,28 @@ Current state of `/Pockitt` as of Sprint 0:
 
 ---
 
-**US-101 | Bootstrap Program.cs**
-> As a developer, I want `Program.cs` to register all required services, so that SignalR, caching, and static files work from day one.
+**US-101 | Bootstrap Program.cs** ✅ DONE
+> As a developer, I want `Program.cs` to register all required services, so that SignalR and static files work from day one.
 
 **Acceptance Criteria:**
-- [ ] `AddSignalR()` registered
-- [ ] `AddMemoryCache()` registered
-- [ ] `AddSingleton<RoomEngine>()` and `AddSingleton<SessionService>()` registered
-- [ ] `UseStaticFiles()` middleware added before hub mapping
-- [ ] `MapHub<PockittHub>("/hub")` mapped
-- [ ] `dotnet run` starts without errors
+- [x] `AddSignalR()` registered
+- [x] `AddSingleton<RoomService>()` registered
+- [x] `UseDefaultFiles()` and `UseStaticFiles()` middleware added
+- [x] `MapHub<RoomAssignHub>("/hub")` mapped
+- [x] `dotnet run` starts without errors
 
 **Assignee:** BE1 | **Points:** 2
 
 ---
 
-**US-102 | Refactor Room & User Models**
+**US-102 | Refactor Room & User Models** ✅ DONE
 > As a developer, I want the data models to match the geohash-based room design, so that raw GPS coordinates are never stored server-side.
 
 **Acceptance Criteria:**
-- [ ] `Room.Latitude` / `Room.Longitude` removed; room keyed by 5-character geohash string ID
-- [ ] `User.Latitude` / `User.Longitude` removed; user stores only `RoomId` (geohash) and `ConnectionId`
-- [ ] `RoomState.cs` created with `ParticipantCount` and a reference to `MessageBuffer`
-- [ ] Models reviewed against `architecture-spec.md` Section 10
+- [x] `Room.Latitude` / `Room.Longitude` removed; `Room.Geohash` added
+- [x] `User.Latitude` / `User.Longitude` removed; `User.Geohash` added
+- [x] `User.SessionToken` (Guid) added for reconnect support
+- [x] Models reviewed against `architecture-spec.md` Section 10
 
 **Assignee:** BE1 | **Points:** 3
 
@@ -214,14 +217,16 @@ Current state of `/Pockitt` as of Sprint 0:
 
 ---
 
-**US-304 | Room Engine**
-> As a developer, I want `RoomEngine` to manage room state lifecycle, so that rooms form dynamically and dissolve after 30 minutes of inactivity.
+**US-304 | Room Service** ✅ DONE
+> As a developer, I want `RoomService` to manage room matching and lifecycle, so that users are placed in proximity-based rooms and empty rooms are cleaned up.
 
 **Acceptance Criteria:**
-- [ ] `GetOrCreateRoom(geohash)` returns room ID; creates `RoomState` in `IMemoryCache`
-- [ ] `SlidingExpiration` set to 30 minutes
-- [ ] `TouchRoom(roomId)` called on every message to reset TTL
-- [ ] Unit tests cover: create, touch, and eviction paths
+- [x] `GetOrCreateRoomForUser(user)` finds closest room within 0.062mi (one football field) or falls back to absolute closest
+- [x] Geohash decoded server-side to lat/lng via BASE32 decoder
+- [x] Haversine formula used for distance calculation
+- [x] New room created if no rooms exist
+- [x] Empty rooms scheduled for removal after 5 minutes via `CancellationTokenSource`
+- [x] Removal cancelled if user reconnects within grace period
 
 **Assignee:** BE2 | **Points:** 5
 

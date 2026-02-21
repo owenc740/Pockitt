@@ -12,7 +12,7 @@ Pockitt is an accountless, location-based group chat web application. Users conn
 |----------------|----------------------------------|
 | Containerization | Docker (single container)      |
 | Frontend        | HTML + Tailwind CSS + TypeScript |
-| Backend         | ASP.NET Core 8 + SignalR        |
+| Backend         | ASP.NET Core 10 + SignalR       |
 
 ---
 
