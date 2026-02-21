@@ -9,6 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 import * as signalR from "@microsoft/signalr";
 import { initArt } from "./art";
+import { getGeoHash } from "./geo";
 // Elements - Join Screen
 const joinScreen = document.getElementById("join-screen");
 const usernameInput = document.getElementById("username-input");
@@ -111,9 +112,11 @@ function join() {
         try {
             yield connection.start();
             const sessionToken = sessionStorage.getItem("sessionToken");
-            navigator.geolocation.getCurrentPosition((position) => __awaiter(this, void 0, void 0, function* () {
-                yield connection.invoke("Join", username, position.coords.latitude, position.coords.longitude, sessionToken);
-            }), () => {
+            getGeoHash()
+                .then((geohash) => __awaiter(this, void 0, void 0, function* () {
+                yield connection.invoke("Join", username, geohash, sessionToken);
+            }))
+                .catch(() => {
                 showError("Location access is required to join a room.");
                 joinBtn.disabled = false;
             });

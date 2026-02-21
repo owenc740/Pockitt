@@ -1,5 +1,6 @@
 import * as signalR from "@microsoft/signalr";
 import { initArt } from "./art";
+import { getGeoHash } from "./geo";
 
 // Elements - Join Screen
 const joinScreen = document.getElementById("join-screen") as HTMLDivElement;
@@ -140,20 +141,18 @@ async function join(): Promise<void> {
 
         const sessionToken = sessionStorage.getItem("sessionToken");
 
-        navigator.geolocation.getCurrentPosition(
-            async (position) => {
+        getGeoHash()
+            .then(async (geohash: string) => {
                 await connection.invoke("Join",
                     username,
-                    position.coords.latitude,
-                    position.coords.longitude,
+                    geohash,
                     sessionToken
                 );
-            },
-            () => {
+            })
+            .catch(() => {
                 showError("Location access is required to join a room.");
                 joinBtn.disabled = false;
-            }
-        );
+            });
     } catch {
         showError("Could not connect to the server. Please try again.");
         joinBtn.disabled = false;
