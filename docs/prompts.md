@@ -22,4 +22,13 @@
 
 ---
 
+### [2026-02-21] Pockitt File Structure Consolidation
+
+**Summary:** Collapsed the previously separate frontend/backend architecture into a single unified ASP.NET Core project. The new structure places all real-time hub logic in `Hubs/`, data models in `Models/`, geospatial and room services in `Services/`, and the frontend (HTML, Tailwind CSS, TypeScript) directly in `wwwroot/` — served as static files by the same ASP.NET Core process. Removed the Docker Compose two-container setup (separate Node.js/Vite frontend container + ASP.NET backend container) in favor of a single-image Dockerfile. Removed `Controllers/` (no separate image upload controller; drawing validation lives in the hub). Updated `architecture-spec.md` (sections: tech stack, frontend structure, backend structure, Program.cs bootstrap, Docker deployment, system architecture diagram, Phase 1 milestones) and `pockitt-features.md` (tech stack table, deployment description) to reflect the new structure.
+
+**Prompt:** This is also going to be our file structure, update any documents that need this:
+Pockitt/ ├── Hubs/ ← SignalR hub (real-time chat logic) ├── Models/ ← Data models (Room, Message, User) ├── Services/ ← Room matching logic based on geolocation ├── wwwroot/ ← Frontend (HTML, CSS, TypeScript) │ ├── css/ │ ├── js/ │ └── index.html └── Program.cs
+
+---
+
 <!-- New prompts below -->
