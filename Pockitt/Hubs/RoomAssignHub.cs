@@ -19,7 +19,7 @@ public class RoomAssignHub : Hub
         _roomService = roomService;
     }
 
-    public async Task Join(string username, double latitude, double longitude, string? sessionToken = null)
+    public async Task Join(string username, string geohash, string? sessionToken = null)
     {
         User? existingUser = null;
 
@@ -67,8 +67,7 @@ public class RoomAssignHub : Hub
         {
             ConnectionId = Context.ConnectionId,
             Username = username,
-            Latitude = latitude,
-            Longitude = longitude
+            Geohash = geohash
         };
 
         var room = _roomService.GetOrCreateRoomForUser(user);

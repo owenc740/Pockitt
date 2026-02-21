@@ -9,7 +9,42 @@ public class RoomService
     private readonly object _lock = new();
 
     private const int MaxRoomSize = 10;
+    private const double ProximityThresholdMiles = 0.062; // ~100 meters, roughly one football field
     private static readonly TimeSpan EmptyRoomLifetime = TimeSpan.FromMinutes(5);
+
+    private const string Base32 = "0123456789bcdefghjkmnpqrstuvwxyz";
+
+    // Decodes a geohash to the center lat/lng of its bounding box
+    private static (double lat, double lng) DecodeGeohash(string geohash)
+    {
+        double minLat = -90, maxLat = 90;
+        double minLng = -180, maxLng = 180;
+        bool evenBit = true;
+
+        foreach (char c in geohash)
+        {
+            int idx = Base32.IndexOf(c);
+            for (int bits = 4; bits >= 0; bits--)
+            {
+                int bitN = (idx >> bits) & 1;
+                if (evenBit)
+                {
+                    double midLng = (minLng + maxLng) / 2;
+                    if (bitN == 1) minLng = midLng;
+                    else maxLng = midLng;
+                }
+                else
+                {
+                    double midLat = (minLat + maxLat) / 2;
+                    if (bitN == 1) minLat = midLat;
+                    else maxLat = midLat;
+                }
+                evenBit = !evenBit;
+            }
+        }
+
+        return ((minLat + maxLat) / 2, (minLng + maxLng) / 2);
+    }
 
     // Haversine formula — calculates distance in miles between two coordinates
     private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
@@ -28,46 +63,56 @@ public class RoomService
 
     private static double ToRadians(double degrees) => degrees * (Math.PI / 180);
 
-    // Find the closest room with space, or create a new one
+    // Find the closest room within one football field; fall back to the absolute closest with space
     public Room GetOrCreateRoomForUser(User user)
     {
         lock (_lock)
         {
-            Room? closestRoom = null;
-            double closestDistance = double.MaxValue;
+            var (userLat, userLng) = DecodeGeohash(user.Geohash);
+
+            Room? closestNearby = null;
+            Room? closestAny = null;
+            double closestNearbyDist = double.MaxValue;
+            double closestAnyDist = double.MaxValue;
 
             foreach (var room in _rooms)
             {
                 if (room.Users.Count >= MaxRoomSize) continue;
 
-                double distance = CalculateDistance(user.Latitude, user.Longitude, room.Latitude, room.Longitude);
-                if (distance < closestDistance)
+                var (roomLat, roomLng) = DecodeGeohash(room.Geohash);
+                double distance = CalculateDistance(userLat, userLng, roomLat, roomLng);
+
+                if (distance <= ProximityThresholdMiles && distance < closestNearbyDist)
                 {
-                    closestDistance = distance;
-                    closestRoom = room;
+                    closestNearbyDist = distance;
+                    closestNearby = room;
+                }
+
+                if (distance < closestAnyDist)
+                {
+                    closestAnyDist = distance;
+                    closestAny = room;
                 }
             }
 
-            if (closestRoom != null)
+            var match = closestNearby ?? closestAny;
+            if (match != null)
             {
-                // Cancel cleanup timer if room was pending deletion
-                CancelCleanupTimer(closestRoom.Id);
-                return closestRoom;
+                CancelCleanupTimer(match.Id);
+                return match;
             }
 
-            // No available room found, create a new one
-            return CreateRoom(user.Latitude, user.Longitude);
+            return CreateRoom(user.Geohash);
         }
     }
 
-    public Room CreateRoom(double latitude, double longitude)
+    public Room CreateRoom(string geohash)
     {
         lock (_lock)
         {
             var room = new Room
             {
-                Latitude = latitude,
-                Longitude = longitude,
+                Geohash = geohash,
                 Name = $"Room {_rooms.Count + 1}"
             };
             _rooms.Add(room);
