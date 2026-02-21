@@ -3,7 +3,8 @@ namespace Pockitt.Models;
 public enum MessageType
 {
     Text,
-    Drawing
+    Art,
+    Game
 }
 
 public class Message
