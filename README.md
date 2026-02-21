@@ -1,2 +1,2 @@
-# microwaves
+# Pockitt
 Our hackathon project

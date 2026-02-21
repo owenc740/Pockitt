@@ -1,5 +1,5 @@
 {
-  "name": "Microwaves",
+  "name": "Pockitt",
   "image": "mcr.microsoft.com/devcontainers/dotnet:2-10.0",
   "features": {
     "ghcr.io/stu-bell/devcontainer-features/node:0": {}
