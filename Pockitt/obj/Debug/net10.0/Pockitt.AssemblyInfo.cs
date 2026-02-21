@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Pockitt")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cf7761a63bfd0e9aa604e353596ddae2ce8e6cce")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+85397d49bbaf11cf666bc655d8f42c0f15fbfb06")]
 [assembly: System.Reflection.AssemblyProductAttribute("Pockitt")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Pockitt")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
