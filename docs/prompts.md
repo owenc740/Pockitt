@@ -39,4 +39,10 @@ Pockitt/ ├── Hubs/ ← SignalR hub (real-time chat logic) ├── Models
 
 ---
 
+### [2026-02-21] Pockitt Documentation Sync
+
+**Summary:** Audited and updated all documentation to match the actual implemented state of the codebase. Key changes across `architecture-spec.md`, `backlog.md`, and `pockitt-features.md`: updated runtime from .NET 8 to .NET 10; renamed `PockittHub` → `RoomAssignHub` and `RoomEngine` → `RoomService` throughout; replaced `IMemoryCache`-based room TTL design with in-memory Dictionary + `CancellationTokenSource` 5-minute room cleanup; updated hub method signatures to reflect `Join(username, geohash, sessionToken?)` with session reconnect logic; replaced pure geohash cell matching with Haversine proximity strategy (0.062mi / ~100m threshold + closest-room fallback); updated data models to reflect actual `User`, `Room`, and `Message` classes (Geohash replaces lat/lng); updated frontend directory structure (`style.css` not `site.css`, `app.ts` entry point, planned JS modules noted); updated Program.cs bootstrap code; updated Dockerfile base images to .NET 10; marked Sprint 1 stories US-101, US-102, US-304 as complete; updated folder structure analysis to current state with remaining gaps (index.html, app.ts, Tailwind build, Docker).
+
+**Prompt:** Polish and improve the next prompt act as the worlds leading tech entrepreneur out of silicon valley. Go through the documentation files and edit anything so it matches with our current workflow. This includes file structures and everything else.
+
 <!-- New prompts below -->
