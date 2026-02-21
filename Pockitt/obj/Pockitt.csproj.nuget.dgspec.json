@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/workspaces/microwaves/Pockitt/Pockitt.csproj": {}
+    "/workspaces/pockitt/pockitt/Pockitt.csproj": {}
   },
   "projects": {
-    "/workspaces/microwaves/Pockitt/Pockitt.csproj": {
+    "/workspaces/pockitt/pockitt/Pockitt.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/workspaces/microwaves/Pockitt/Pockitt.csproj",
+        "projectUniqueName": "/workspaces/pockitt/pockitt/Pockitt.csproj",
         "projectName": "Pockitt",
-        "projectPath": "/workspaces/microwaves/Pockitt/Pockitt.csproj",
+        "projectPath": "/workspaces/pockitt/pockitt/Pockitt.csproj",
         "packagesPath": "/home/vscode/.nuget/packages/",
-        "outputPath": "/workspaces/microwaves/Pockitt/obj/",
+        "outputPath": "/workspaces/pockitt/pockitt/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/vscode/.nuget/NuGet/NuGet.Config"
