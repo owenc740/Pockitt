@@ -8,12 +8,11 @@ Pockitt is an accountless, location-based group chat web application. Users conn
 
 ## Tech Stack
 
-| Layer          | Technology     |
-|----------------|----------------|
-| Containerization | Docker       |
-| Package Manager | Node.js (npm) |
-| Frontend        | Tailwind CSS  |
-| Backend         | ASP.NET       |
+| Layer          | Technology                       |
+|----------------|----------------------------------|
+| Containerization | Docker (single container)      |
+| Frontend        | HTML + Tailwind CSS + TypeScript |
+| Backend         | ASP.NET Core 8 + SignalR        |
 
 ---
 
@@ -49,4 +48,4 @@ Pockitt is an accountless, location-based group chat web application. Users conn
 
 ## Deployment
 
-The application is containerized with **Docker**, ensuring consistent environments across development and production. The Node.js ecosystem manages frontend build tooling, and **ASP.NET** powers the backend API and real-time communication layer.
+The application is a single **ASP.NET Core** project containerized with **Docker**. The backend serves the frontend static files directly from `wwwroot`, eliminating the need for a separate frontend container or reverse proxy. SignalR handles all real-time communication over WebSocket.

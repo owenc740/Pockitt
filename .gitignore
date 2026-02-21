@@ -1,0 +1,21 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Node
+node_modules/
+npm-debug.log
+
+# TypeScript
+dist/
+*.js.map
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
