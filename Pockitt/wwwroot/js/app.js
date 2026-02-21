@@ -12,6 +12,7 @@ import { initArt } from "./art";
 import { getGeoHash } from "./geo";
 // Elements - Join Screen
 const joinScreen = document.getElementById("join-screen");
+const loadingScreen = document.getElementById("loading-screen");
 const usernameInput = document.getElementById("username-input");
 const joinBtn = document.getElementById("join-btn");
 const joinError = document.getElementById("join-error");
@@ -45,6 +46,7 @@ connection.on("RoomJoined", (data) => {
     if (data.reconnected) {
         appendSystemMessage("Reconnected to room.");
     }
+    window.location.href = "/chatRoom.html";
 });
 connection.on("ReceiveMessage", (data) => {
     if (data.type === "text") {
@@ -109,6 +111,8 @@ function join() {
             return;
         }
         joinBtn.disabled = true;
+        joinScreen.hidden = true;
+        loadingScreen.hidden = false;
         try {
             yield connection.start();
             const sessionToken = sessionStorage.getItem("sessionToken");
@@ -117,11 +121,15 @@ function join() {
                 yield connection.invoke("Join", username, geohash, sessionToken);
             }))
                 .catch(() => {
+                loadingScreen.hidden = true;
+                joinScreen.hidden = false;
                 showError("Location access is required to join a room.");
                 joinBtn.disabled = false;
             });
         }
         catch (_a) {
+            loadingScreen.hidden = true;
+            joinScreen.hidden = false;
             showError("Could not connect to the server. Please try again.");
             joinBtn.disabled = false;
         }

@@ -1,0 +1,25 @@
+#loading-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+#loading-bar-track {
+    width: 220px;
+    height: 6px;
+    background: #ddd;
+    border-radius: 3px;
+    overflow: hidden;
+}
+#loading-bar {
+    height: 100%;
+    width: 40%;
+    background: #555;
+    border-radius: 3px;
+    animation: slide 1.2s ease-in-out infinite;
+}
+@keyframes slide {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(650%); }
+}

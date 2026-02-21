@@ -4,6 +4,7 @@ import { getGeoHash } from "./geo";
 
 // Elements - Join Screen
 const joinScreen = document.getElementById("join-screen") as HTMLDivElement;
+const loadingScreen = document.getElementById("loading-screen") as HTMLDivElement;
 const usernameInput = document.getElementById("username-input") as HTMLInputElement;
 const joinBtn = document.getElementById("join-btn") as HTMLButtonElement;
 const joinError = document.getElementById("join-error") as HTMLParagraphElement;
@@ -52,6 +53,7 @@ connection.on("RoomJoined", (data: {
     if (data.reconnected) {
         appendSystemMessage("Reconnected to room.");
     }
+    window.location.href = "/chatRoom.html";
 });
 
 connection.on("ReceiveMessage", (data: {
