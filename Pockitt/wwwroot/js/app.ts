@@ -28,8 +28,12 @@ const connection = new signalR.HubConnectionBuilder()
     .withAutomaticReconnect()
     .build();
 
-// Initialize art tool
-initArt(connection);
+// Initialize art tool  
+const art = initArt(connection);
+
+drawBtn.addEventListener("click", () => {
+    art.openPanel();
+});
 
 // ---- SignalR Event Handlers ----
 

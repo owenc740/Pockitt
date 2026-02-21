@@ -1,6 +1,6 @@
 import * as signalR from "@microsoft/signalr";
 
-export function initArt(connection: signalR.HubConnection): void {
+export function initArt(connection: signalR.HubConnection): { openPanel: () => void } {
     const canvas = document.getElementById("drawing-canvas") as HTMLCanvasElement;
     const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
     const clearBtn = document.getElementById("clear-canvas-btn") as HTMLButtonElement;
@@ -14,8 +14,8 @@ export function initArt(connection: signalR.HubConnection): void {
     const brushColorInput = document.getElementById("brush-color") as HTMLInputElement;
 
     // Canvas size
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
+    // canvas.width = canvas.offsetWidth;
+    // canvas.height = canvas.offsetHeight;
 
     // Drawing state
     let isDrawing = false;
@@ -24,7 +24,7 @@ export function initArt(connection: signalR.HubConnection): void {
     let redoStack: ImageData[] = [];
 
     // Save initial blank state
-    saveSnapshot();
+    // saveSnapshot();
 
     // ---- Snapshot Functions ----
 
@@ -143,4 +143,13 @@ export function initArt(connection: signalR.HubConnection): void {
     closeBtn.addEventListener("click", () => {
         drawingPanel.hidden = true;
     });
+
+    return {
+        openPanel: () => {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            drawingPanel.hidden = false;
+            saveSnapshot();
+        }
+    };
 }
