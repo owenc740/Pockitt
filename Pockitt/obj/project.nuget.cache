@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "68xZIavgNkc=",
+  "dgSpecHash": "O8YlF7nDsa0=",
   "success": true,
-  "projectFilePath": "/workspaces/microwaves/Pockitt/Pockitt.csproj",
+  "projectFilePath": "/workspaces/pockitt/pockitt/Pockitt.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }
