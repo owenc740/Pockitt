@@ -42,7 +42,7 @@ html, body {
 
 .tip {
   margin-top: 8px;
-  font-size: 18px;
+  font-size: 16px;
   font-style: italic;
   color: #5f5f5f;
   text-align: center;
@@ -50,11 +50,11 @@ html, body {
 }
 
 .join-form input {
-  width: 200px;
+  width: 300px;
 }
 
 .join-form button { 
-    width: 200px; 
+    width: 300px; 
 }
 
 #drawing-canvas {

@@ -1,6 +1,7 @@
 import * as signalR from "@microsoft/signalr";
 import { initArt } from "./art";
 import { getGeoHash } from "./geo";
+import "../css/style.css";
 
 // Elements - Join Screen
 const joinScreen = document.getElementById("join-screen") as HTMLDivElement | null;
