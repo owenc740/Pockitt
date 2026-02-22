@@ -5,7 +5,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Register Services
 builder.Services.AddSingleton<RoomService>();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10MB
+});
 
 var app = builder.Build();
 

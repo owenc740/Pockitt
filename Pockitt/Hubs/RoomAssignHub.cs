@@ -19,7 +19,7 @@ public class RoomAssignHub : Hub
         _roomService = roomService;
     }
 
-    public async Task Join(string username, string geohash, string? sessionToken = null)
+public async Task Join(string username, string geohash, string? sessionToken = null)
     {
         User? existingUser = null;
 
@@ -31,14 +31,12 @@ public class RoomAssignHub : Hub
 
                 if (existingUser != null)
                 {
-                    // Cancel the disconnect timer
                     if (_disconnectTimers.TryGetValue(sessionToken, out var cts))
                     {
                         cts.Cancel();
                         _disconnectTimers.Remove(sessionToken);
                     }
 
-                    // Move user back to connected, update connection ID
                     _disconnectedUsers.Remove(sessionToken);
                     existingUser.ConnectionId = Context.ConnectionId;
                     _connectedUsers[Context.ConnectionId] = existingUser;
@@ -51,6 +49,14 @@ public class RoomAssignHub : Hub
             await Groups.AddToGroupAsync(Context.ConnectionId, existingUser.RoomId);
 
             var existingRoom = _roomService.GetRoom(existingUser.RoomId);
+
+            // Notify others that user rejoined
+            await Clients.OthersInGroup(existingUser.RoomId).SendAsync("UserRejoined", new
+            {
+                username = existingUser.Username,
+                userCount = existingRoom?.Users.Count
+            });
+
             await Clients.Caller.SendAsync("RoomJoined", new
             {
                 roomId = existingUser.RoomId,
@@ -94,6 +100,76 @@ public class RoomAssignHub : Hub
             username = user.Username,
             userCount = room.Users.Count
         });
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        Console.WriteLine($"[Disconnect] ConnectionId: {Context.ConnectionId}");
+        
+        User? user;
+        lock (_lock)
+        {
+            _connectedUsers.TryGetValue(Context.ConnectionId, out user);
+            if (user != null)
+            {
+                _connectedUsers.Remove(Context.ConnectionId);
+                _disconnectedUsers[user.SessionToken] = user;
+            }
+        }
+
+        if (user != null)
+        {
+            var cts = new CancellationTokenSource();
+            var sessionToken = user.SessionToken;
+            var roomId = user.RoomId;
+
+            lock (_lock)
+            {
+                _disconnectTimers[sessionToken] = cts;
+            }
+
+            // Immediately notify room that user disconnected
+            Console.WriteLine($"[Disconnect] User: {user?.Username}, RoomId: {user?.RoomId}");
+            var room = _roomService.GetRoom(roomId);
+            Console.WriteLine($"[Disconnect] Room found: {room != null}");
+
+            if (room != null)
+            {
+                Console.WriteLine($"[Disconnect] Broadcasting UserDisconnected to room {roomId}");
+                await Clients.Group(roomId).SendAsync("UserDisconnected", new
+                {
+                    username = user.Username,
+                    userCount = room.Users.Count
+                });
+            }
+
+            _ = Task.Delay(ReconnectGracePeriod, cts.Token).ContinueWith(async t =>
+            {
+                if (t.IsCanceled) return;
+
+                lock (_lock)
+                {
+                    _disconnectedUsers.Remove(sessionToken);
+                    _disconnectTimers.Remove(sessionToken);
+                }
+
+                var latestRoom = _roomService.GetRoom(roomId);
+                _roomService.RemoveUser(user);
+
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
+
+                if (latestRoom != null)
+                {
+                    await Clients.Group(roomId).SendAsync("UserLeft", new
+                    {
+                        username = user.Username,
+                        userCount = latestRoom.Users.Count
+                    });
+                }
+            });
+        }
+
+        await base.OnDisconnectedAsync(exception);
     }
 
     public async Task SendMessage(string content)
@@ -148,55 +224,4 @@ public class RoomAssignHub : Hub
         });
     }
 
-    public override async Task OnDisconnectedAsync(Exception? exception)
-    {
-        User? user;
-        lock (_lock)
-        {
-            _connectedUsers.TryGetValue(Context.ConnectionId, out user);
-            if (user != null)
-            {
-                _connectedUsers.Remove(Context.ConnectionId);
-                _disconnectedUsers[user.SessionToken] = user;
-            }
-        }
-
-        if (user != null)
-        {
-            var cts = new CancellationTokenSource();
-            var sessionToken = user.SessionToken;
-
-            lock (_lock)
-            {
-                _disconnectTimers[sessionToken] = cts;
-            }
-
-            _ = Task.Delay(ReconnectGracePeriod, cts.Token).ContinueWith(async t =>
-            {
-                if (t.IsCanceled) return;
-
-                lock (_lock)
-                {
-                    _disconnectedUsers.Remove(sessionToken);
-                    _disconnectTimers.Remove(sessionToken);
-                }
-
-                var room = _roomService.GetRoom(user.RoomId);
-                _roomService.RemoveUser(user);
-
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, user.RoomId);
-
-                if (room != null)
-                {
-                    await Clients.Group(user.RoomId).SendAsync("UserLeft", new
-                    {
-                        username = user.Username,
-                        userCount = room.Users.Count
-                    });
-                }
-            });
-        }
-
-        await base.OnDisconnectedAsync(exception);
-    }
 }

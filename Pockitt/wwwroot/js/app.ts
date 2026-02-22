@@ -81,6 +81,16 @@ connection.on("UserLeft", (data: { username: string; userCount: number }) => {
     appendSystemMessage(`${data.username} left the room.`);
 });
 
+connection.on("UserDisconnected", (data: { username: string; userCount: number }) => {
+    userCount.textContent = `${data.userCount} online`;
+    appendSystemMessage(`${data.username} disconnected.`);
+});
+
+connection.on("UserRejoined", (data: { username: string; userCount: number }) => {
+    userCount.textContent = `${data.userCount} online`;
+    appendSystemMessage(`${data.username} reconnected.`);
+});
+
 // ---- UI Functions ----
 
 function appendTextMessage(user: string, content: string): void {
@@ -185,8 +195,4 @@ sendBtn.addEventListener("click", sendMessage);
 
 messageInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") sendMessage();
-});
-
-drawBtn.addEventListener("click", () => {
-    drawingPanel.hidden = false;
 });
