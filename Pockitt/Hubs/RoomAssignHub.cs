@@ -129,9 +129,7 @@ public async Task Join(string username, string geohash, string? sessionToken = n
             }
 
             // Immediately notify room that user disconnected
-            Console.WriteLine($"[Disconnect] User: {user?.Username}, RoomId: {user?.RoomId}");
             var room = _roomService.GetRoom(roomId);
-            Console.WriteLine($"[Disconnect] Room found: {room != null}");
 
             if (room != null)
             {
@@ -143,6 +141,10 @@ public async Task Join(string username, string geohash, string? sessionToken = n
                 });
             }
 
+            // Remove the ?. operators since user is guaranteed non-null here
+            Console.WriteLine($"[Disconnect] User: {user.Username}, RoomId: {user.RoomId}");
+
+            // Inside ContinueWith, capture user in a local variable to satisfy the compiler
             _ = Task.Delay(ReconnectGracePeriod, cts.Token).ContinueWith(async t =>
             {
                 if (t.IsCanceled) return;
@@ -154,7 +156,8 @@ public async Task Join(string username, string geohash, string? sessionToken = n
                 }
 
                 var latestRoom = _roomService.GetRoom(roomId);
-                _roomService.RemoveUser(user);
+                var capturedUser = user;
+                if (capturedUser != null) _roomService.RemoveUser(capturedUser);
 
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
 

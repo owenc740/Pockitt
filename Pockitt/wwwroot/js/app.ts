@@ -35,7 +35,11 @@ let art: { openPanel: () => void } | null = null;
 if (drawBtn && drawingPanel && document.getElementById("drawing-canvas")) {
     art = initArt(connection);
     drawBtn.addEventListener("click", () => {
-        art?.openPanel();
+        if (drawingPanel.hidden === false) {
+            drawingPanel.hidden = true;
+        } else {
+            art?.openPanel();
+        }
     });
 }
 
@@ -108,24 +112,27 @@ connection.on("UserRejoined", (data: { username: string; userCount: number }) =>
 function appendTextMessage(user: string, content: string): void {
     if (!messageFeed) return;
     const msg = document.createElement("div");
-    msg.className = "message text-message";
+    const isOwn = user === username;
+    msg.className = `message text-message${isOwn ? " own-message" : ""}`;
     msg.innerHTML = `<span class="message-username">${escapeHtml(user)}</span><span class="message-content">${escapeHtml(content)}</span>`;
     messageFeed.appendChild(msg);
     messageFeed.scrollTop = messageFeed.scrollHeight;
 }
 
 function appendArtMessage(user: string, dataUrl: string): void {
+    console.log("art message user:", user, "username:", username, "isOwn:", user === username);
     if (!messageFeed) return;
     const msg = document.createElement("div");
-    msg.className = "message art-message";
-
-    const img = document.createElement("img");
-    img.src = dataUrl;
-    img.alt = `${user}'s art`;
+    const isOwn = user === username;
+    msg.className = `message art-message${isOwn ? " own-message" : ""}`;
 
     const label = document.createElement("span");
     label.className = "message-username";
     label.textContent = user;
+
+    const img = document.createElement("img");
+    img.src = dataUrl;
+    img.alt = `${user}'s art`;
 
     msg.appendChild(label);
     msg.appendChild(img);

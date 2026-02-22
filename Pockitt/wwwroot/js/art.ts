@@ -5,7 +5,6 @@ export function initArt(connection: signalR.HubConnection): { openPanel: () => v
     const ctx = canvas.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D;
     const clearBtn = document.getElementById("clear-canvas-btn") as HTMLButtonElement;
     const sendBtn = document.getElementById("send-drawing-btn") as HTMLButtonElement;
-    const closeBtn = document.getElementById("close-drawing-btn") as HTMLButtonElement;
     const drawingPanel = document.getElementById("drawing-panel") as HTMLDivElement;
     const undoBtn = document.getElementById("undo-btn") as HTMLButtonElement;
     const redoBtn = document.getElementById("redo-btn") as HTMLButtonElement;
@@ -133,16 +132,13 @@ export function initArt(connection: signalR.HubConnection): { openPanel: () => v
         drawingPanel.hidden = true;
     });
 
-    closeBtn.addEventListener("click", () => {
-        drawingPanel.hidden = true;
-    });
-
     return {
         openPanel: () => {
             drawingPanel.hidden = false;
             requestAnimationFrame(() => {
-                canvas.width = canvas.offsetWidth;
-                canvas.height = canvas.offsetHeight;
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
                 saveSnapshot();
             });
         }
