@@ -101,10 +101,258 @@ input:focus::placeholder {
     width: 300px; 
 }
 
+/* ---- Chat Screen ---- */
+
+#chat-screen {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 700px;
+    margin: 0 auto;
+    background: #f0eeee;
+    font-family: "Roboto Mono", monospace;
+}
+
+#chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #fff;
+    border-bottom: 2px solid #222;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+#room-name {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+#user-count {
+    font-size: 12px;
+    color: #555;
+}
+
+/* ---- Message Feed ---- */
+
+#message-feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #f0eeee;
+}
+
+.message {
+    max-width: 75%;
+    padding: 8px 12px;
+    border-radius: 16px;
+    border: 2px solid #222;
+    font-size: 13px;
+    line-height: 1.4;
+    word-break: break-word;
+    background: #fff;
+}
+
+.text-message {
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.message-username {
+    font-weight: 700;
+    font-size: 11px;
+    color: #444;
+    text-transform: lowercase;
+}
+
+.message-content {
+    color: #111;
+}
+
+.art-message {
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+}
+
+.art-message img {
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.system-message {
+    align-self: center;
+    background: transparent;
+    border: none;
+    font-size: 11px;
+    color: #888;
+    padding: 2px 8px;
+    font-style: italic;
+}
+
+/* ---- Input Area ---- */
+
+#input-area {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #fff;
+    border-top: 2px solid #222;
+    align-items: center;
+}
+
+#message-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 2px solid #222;
+    border-radius: 999px;
+    font-family: "Roboto Mono", monospace;
+    font-size: 13px;
+    outline: none;
+    background: #f9f9f9;
+    text-align: left;
+}
+
+#message-input::placeholder {
+    text-align: left;
+    color: #aaa;
+}
+
+#input-area button {
+    padding: 8px 16px;
+    border: 2px solid #222;
+    border-radius: 999px;
+    font-family: "Roboto Mono", monospace;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    background: #fff;
+    transition: background 0.15s;
+}
+
+#input-area #send-btn {
+    background: #222;
+    color: #fff;
+}
+
+#input-area #send-btn:hover {
+    background: #444;
+}
+
+#drawing-controls #send-drawing-btn {
+    background: #222;
+    color: #fff;
+}
+
+#drawing-controls #send-drawing-btn:hover {
+    background: #444;
+}
+
+#draw-btn:hover {
+    background: #f0eeee;
+}
+
+/* ---- Art Panel ---- */
+
+#drawing-panel {
+    border-top: 2px solid #222;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+#drawing-panel[hidden] {
+    display: none !important;
+}
+
 #drawing-canvas {
     width: 100%;
-    height: 400px;
-    background-color: white;
+    height: 340px;
+    background-color: #fff;
     display: block;
     cursor: crosshair;
+    border-bottom: 1px solid #ddd;
+}
+
+#drawing-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #f9f9f9;
+    border-top: 2px solid #222;
+}
+
+#drawing-controls button {
+    padding: 6px 12px;
+    border: 2px solid #222;
+    border-radius: 999px;
+    font-family: "Roboto Mono", monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    background: #fff;
+    transition: background 0.15s;
+}
+
+#drawing-controls button:hover {
+    background: #f0eeee;
+}
+
+#eraser-btn.active {
+    background: #222;
+    color: #fff;
+}
+
+#brush-color {
+    width: 36px;
+    height: 36px;
+    border: 2px solid #222;
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 2px;
+    background: none;
+}
+
+#brush-size {
+    width: 80px;
+    accent-color: #222;
+}
+
+.text-message.own-message {
+    align-self: flex-end;
+    background: #222;
+    color: #fff;
+}
+
+.text-message.own-message .message-username {
+    color: #aaa;
+}
+
+.text-message.own-message .message-content {
+    color: #fff;
+}
+
+.art-message.own-message {
+    align-self: flex-end;
+    background: #222;
+}
+
+.art-message.own-message .message-username {
+    color: #aaa;
+}
+
+.art-message.own-message img {
+    background: #fff;
 }
