@@ -4,57 +4,62 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pockitt</title>
-    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/Pockitt/wwwroot/css/style.css"> <!-- Link to the Cascade Style Sheet -->
 </head>
 <body>
+    <div class="page">
+        <div class="content">
+            <!-- Join Screen -->
+            <div id="join-screen">
+                <h1>Welcome to pockitt</h1>
+                <p>Chat with people around you.</p>
 
-    <!-- Join Screen -->
-    <div id="join-screen">
-        <h1>Pockitt</h1>
-        <p>Chat with people around you.</p>
+                <form class="join-form">
+                    <input id="username-input" type="text" placeholder="Pick a username" maxlength="20" />
+                    <button id="join-btn">Join</button>
+                    <p class="tip">tip: people are nice if you’re nice. but that’s boring.</p>
+                </form>
 
-        <input id="username-input" type="text" placeholder="Pick a username" maxlength="20" />
-        <button id="join-btn">Join</button>
+                <p id="join-error" hidden></p>
+            </div>
 
-        <p id="join-error" hidden></p>
-    </div>
+            <!-- Chat Screen -->
+            <div id="chat-screen" hidden>
 
-    <!-- Chat Screen -->
-    <div id="chat-screen" hidden>
+                <!-- Header -->
+                <div id="chat-header">
+                    <span id="room-name"></span>
+                    <span id="user-count"></span>
+                </div>
 
-        <!-- Header -->
-        <div id="chat-header">
-            <span id="room-name"></span>
-            <span id="user-count"></span>
-        </div>
+                <!-- Message Feed -->
+                <div id="message-feed"></div>
 
-        <!-- Message Feed -->
-        <div id="message-feed"></div>
+                <!-- Art Panel -->
+                <div id="drawing-panel" hidden>
+                    <canvas id="drawing-canvas"></canvas>
+                    <div id="drawing-controls">
+                        <input id="brush-color" type="color" value="#000000" />
+                        <input id="brush-size" type="range" min="1" max="40" value="5" />
+                        <button id="eraser-btn">Eraser</button>
+                        <button id="undo-btn">Undo</button>
+                        <button id="redo-btn">Redo</button>
+                        <button id="clear-canvas-btn">Clear</button>
+                        <button id="send-drawing-btn">Send</button>
+                        <button id="close-drawing-btn">Cancel</button>
+                    </div>
+                </div>
 
-        <!-- Art Panel -->
-        <div id="drawing-panel" hidden>
-            <canvas id="drawing-canvas"></canvas>
-            <div id="drawing-controls">
-                <input id="brush-color" type="color" value="#000000" />
-                <input id="brush-size" type="range" min="1" max="40" value="5" />
-                <button id="eraser-btn">Eraser</button>
-                <button id="undo-btn">Undo</button>
-                <button id="redo-btn">Redo</button>
-                <button id="clear-canvas-btn">Clear</button>
-                <button id="send-drawing-btn">Send</button>
-                <button id="close-drawing-btn">Cancel</button>
+                <!-- Input Area -->
+                <div id="input-area">
+                    <input id="message-input" type="text" placeholder="Say something..." maxlength="200" />
+                    <button id="draw-btn">Art</button>
+                    <button id="send-btn">Send</button>
+                </div>
+
             </div>
         </div>
-
-        <!-- Input Area -->
-        <div id="input-area">
-            <input id="message-input" type="text" placeholder="Say something..." maxlength="200" />
-            <button id="draw-btn">Art</button>
-            <button id="send-btn">Send</button>
-        </div>
-
     </div>
-
-    <script type="module" src="/js/app.ts"></script>
+<script type="module" src="/js/app.ts"></script>
 </body>
 </html>
