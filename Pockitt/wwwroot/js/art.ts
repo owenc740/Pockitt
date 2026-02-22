@@ -2,7 +2,7 @@ import * as signalR from "@microsoft/signalr";
 
 export function initArt(connection: signalR.HubConnection): { openPanel: () => void } {
     const canvas = document.getElementById("drawing-canvas") as HTMLCanvasElement;
-    const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D;
     const clearBtn = document.getElementById("clear-canvas-btn") as HTMLButtonElement;
     const sendBtn = document.getElementById("send-drawing-btn") as HTMLButtonElement;
     const closeBtn = document.getElementById("close-drawing-btn") as HTMLButtonElement;
@@ -13,18 +13,11 @@ export function initArt(connection: signalR.HubConnection): { openPanel: () => v
     const brushSizeInput = document.getElementById("brush-size") as HTMLInputElement;
     const brushColorInput = document.getElementById("brush-color") as HTMLInputElement;
 
-    // Canvas size
-    // canvas.width = canvas.offsetWidth;
-    // canvas.height = canvas.offsetHeight;
-
     // Drawing state
     let isDrawing = false;
     let isEraser = false;
     let undoStack: ImageData[] = [];
     let redoStack: ImageData[] = [];
-
-    // Save initial blank state
-    // saveSnapshot();
 
     // ---- Snapshot Functions ----
 
@@ -146,10 +139,12 @@ export function initArt(connection: signalR.HubConnection): { openPanel: () => v
 
     return {
         openPanel: () => {
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
             drawingPanel.hidden = false;
-            saveSnapshot();
+            requestAnimationFrame(() => {
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+                saveSnapshot();
+            });
         }
     };
 }
