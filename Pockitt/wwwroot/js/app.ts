@@ -4,20 +4,21 @@ import { getGeoHash } from "./geo";
 import "../css/style.css";
 
 // Elements - Join Screen
-const joinScreen = document.getElementById("join-screen") as HTMLDivElement;
-const usernameInput = document.getElementById("username-input") as HTMLInputElement;
-const joinBtn = document.getElementById("join-btn") as HTMLButtonElement;
-const joinError = document.getElementById("join-error") as HTMLParagraphElement;
+const joinScreen = document.getElementById("join-screen") as HTMLDivElement | null;
+const joinForm = document.querySelector(".join-form") as HTMLFormElement | null;
+const usernameInput = document.getElementById("username-input") as HTMLInputElement | null;
+const joinBtn = document.getElementById("join-btn") as HTMLButtonElement | null;
+const joinError = document.getElementById("join-error") as HTMLParagraphElement | null;
 
 // Elements - Chat Screen
-const chatScreen = document.getElementById("chat-screen") as HTMLDivElement;
-const roomName = document.getElementById("room-name") as HTMLSpanElement;
-const userCount = document.getElementById("user-count") as HTMLSpanElement;
-const messageFeed = document.getElementById("message-feed") as HTMLDivElement;
-const messageInput = document.getElementById("message-input") as HTMLInputElement;
-const sendBtn = document.getElementById("send-btn") as HTMLButtonElement;
-const drawBtn = document.getElementById("draw-btn") as HTMLButtonElement;
-const drawingPanel = document.getElementById("drawing-panel") as HTMLDivElement;
+const chatScreen = document.getElementById("chat-screen") as HTMLDivElement | null;
+const roomName = document.getElementById("room-name") as HTMLSpanElement | null;
+const userCount = document.getElementById("user-count") as HTMLSpanElement | null;
+const messageFeed = document.getElementById("message-feed") as HTMLDivElement | null;
+const messageInput = document.getElementById("message-input") as HTMLInputElement | null;
+const sendBtn = document.getElementById("send-btn") as HTMLButtonElement | null;
+const drawBtn = document.getElementById("draw-btn") as HTMLButtonElement | null;
+const drawingPanel = document.getElementById("drawing-panel") as HTMLDivElement | null;
 
 // State
 let username = "";
@@ -29,12 +30,14 @@ const connection = new signalR.HubConnectionBuilder()
     .withAutomaticReconnect()
     .build();
 
-// Initialize art tool  
-const art = initArt(connection);
-
-drawBtn.addEventListener("click", () => {
-    art.openPanel();
-});
+// Initialize art tool only on pages where drawing UI exists
+let art: { openPanel: () => void } | null = null;
+if (drawBtn && drawingPanel && document.getElementById("drawing-canvas")) {
+    art = initArt(connection);
+    drawBtn.addEventListener("click", () => {
+        art?.openPanel();
+    });
+}
 
 // ---- SignalR Event Handlers ----
 
@@ -47,12 +50,20 @@ connection.on("RoomJoined", (data: {
 }) => {
     roomId = data.roomId;
     sessionStorage.setItem("sessionToken", data.sessionToken);
+    if (username) {
+        sessionStorage.setItem("username", username);
+    }
 
-    roomName.textContent = data.roomName;
-    userCount.textContent = `${data.userCount} online`;
+    if (roomName) roomName.textContent = data.roomName;
+    if (userCount) userCount.textContent = `${data.userCount} online`;
 
-    joinScreen.hidden = true;
-    chatScreen.hidden = false;
+    if (joinScreen) joinScreen.hidden = true;
+    if (chatScreen) {
+        chatScreen.hidden = false;
+    } else {
+        window.location.href = "/chat.html";
+        return;
+    }
 
     if (data.reconnected) {
         appendSystemMessage("Reconnected to room.");
@@ -73,28 +84,29 @@ connection.on("ReceiveMessage", (data: {
 });
 
 connection.on("UserJoined", (data: { username: string; userCount: number }) => {
-    userCount.textContent = `${data.userCount} online`;
+    if (userCount) userCount.textContent = `${data.userCount} online`;
     appendSystemMessage(`${data.username} joined the room.`);
 });
 
 connection.on("UserLeft", (data: { username: string; userCount: number }) => {
-    userCount.textContent = `${data.userCount} online`;
+    if (userCount) userCount.textContent = `${data.userCount} online`;
     appendSystemMessage(`${data.username} left the room.`);
 });
 
 connection.on("UserDisconnected", (data: { username: string; userCount: number }) => {
-    userCount.textContent = `${data.userCount} online`;
+    if (userCount) userCount.textContent = `${data.userCount} online`;
     appendSystemMessage(`${data.username} disconnected.`);
 });
 
 connection.on("UserRejoined", (data: { username: string; userCount: number }) => {
-    userCount.textContent = `${data.userCount} online`;
+    if (userCount) userCount.textContent = `${data.userCount} online`;
     appendSystemMessage(`${data.username} reconnected.`);
 });
 
 // ---- UI Functions ----
 
 function appendTextMessage(user: string, content: string): void {
+    if (!messageFeed) return;
     const msg = document.createElement("div");
     msg.className = "message text-message";
     msg.innerHTML = `<span class="message-username">${escapeHtml(user)}</span><span class="message-content">${escapeHtml(content)}</span>`;
@@ -103,6 +115,7 @@ function appendTextMessage(user: string, content: string): void {
 }
 
 function appendArtMessage(user: string, dataUrl: string): void {
+    if (!messageFeed) return;
     const msg = document.createElement("div");
     msg.className = "message art-message";
 
@@ -121,6 +134,7 @@ function appendArtMessage(user: string, dataUrl: string): void {
 }
 
 function appendSystemMessage(content: string): void {
+    if (!messageFeed) return;
     const msg = document.createElement("div");
     msg.className = "message system-message";
     msg.textContent = content;
@@ -135,13 +149,21 @@ function escapeHtml(text: string): string {
 }
 
 function showError(message: string): void {
+    if (!joinError) return;
     joinError.textContent = message;
     joinError.hidden = false;
 }
 
 // ---- Join Flow ----
 
+async function startAndJoin(): Promise<void> {
+    const sessionToken = sessionStorage.getItem("sessionToken");
+    const geohash = await getGeoHash();
+    await connection.invoke("Join", username, geohash, sessionToken);
+}
+
 async function join(): Promise<void> {
+    if (!usernameInput || !joinBtn) return;
     username = usernameInput.value.trim();
 
     if (!username) {
@@ -150,33 +172,40 @@ async function join(): Promise<void> {
     }
 
     joinBtn.disabled = true;
+    sessionStorage.setItem("username", username);
 
     try {
-        await connection.start();
-
-        const sessionToken = sessionStorage.getItem("sessionToken");
-
-        getGeoHash()
-            .then(async (geohash: string) => {
-                await connection.invoke("Join",
-                    username,
-                    geohash,
-                    sessionToken
-                );
-            })
-            .catch(() => {
-                showError("Location access is required to join a room.");
-                joinBtn.disabled = false;
-            });
+        if (connection.state === signalR.HubConnectionState.Disconnected) {
+            await connection.start();
+        }
+        await startAndJoin();
     } catch {
         showError("Could not connect to the server. Please try again.");
         joinBtn.disabled = false;
     }
 }
 
+async function autoJoinFromChatPage(): Promise<void> {
+    username = sessionStorage.getItem("username") ?? "";
+    if (!username) {
+        appendSystemMessage("No username found. Go to the join page first.");
+        return;
+    }
+
+    try {
+        if (connection.state === signalR.HubConnectionState.Disconnected) {
+            await connection.start();
+        }
+        await startAndJoin();
+    } catch {
+        appendSystemMessage("Could not connect to the server. Refresh to try again.");
+    }
+}
+
 // ---- Send Message ----
 
 async function sendMessage(): Promise<void> {
+    if (!messageInput) return;
     const content = messageInput.value.trim();
     if (!content) return;
 
@@ -186,14 +215,45 @@ async function sendMessage(): Promise<void> {
 
 // ---- Button Listeners ----
 
-joinBtn.addEventListener("click", join);
+if (joinForm) {
+    joinForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        void join();
+    });
+}
 
-usernameInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") join();
-});
+if (joinBtn) {
+    joinBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        void join();
+    });
+}
 
-sendBtn.addEventListener("click", sendMessage);
+if (usernameInput) {
+    usernameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            void join();
+        }
+    });
+}
 
-messageInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") sendMessage();
-});
+if (sendBtn) {
+    sendBtn.addEventListener("click", () => {
+        void sendMessage();
+    });
+}
+
+if (messageInput) {
+    messageInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            void sendMessage();
+        }
+    });
+}
+
+// If this is the dedicated chat page, join automatically using session state.
+if (chatScreen && !joinScreen) {
+    void autoJoinFromChatPage();
+}
