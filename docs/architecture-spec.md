@@ -1,8 +1,8 @@
 # Pockitt — Engineering & Architecture Specification
 
-> **Version:** 1.0.0
-> **Status:** Draft
-> **Last Updated:** 2026-02-21
+> **Version:** 1.1.0
+> **Status:** Active
+> **Last Updated:** 2026-02-22
 
 ---
 
@@ -62,23 +62,23 @@ Pockitt is built on a single conviction: **the best social experience is the one
 └─────────────────────────────┼─────────────────────────────┘
                               │
 ┌─────────────────────────────▼─────────────────────────────┐
-│                     ASP.NET Core API                        │
+│                     ASP.NET Core Backend                    │
 │                                                             │
-│   ┌──────────────┐   ┌──────────────┐   ┌───────────────┐  │
-│   │  SignalR Hub │   │  Room Engine │   │  Image Upload │  │
-│   │  (Chat/Draw) │   │  (Geohash)   │   │   Controller  │  │
-│   └──────┬───────┘   └──────┬───────┘   └───────┬───────┘  │
-│          │                  │                    │          │
-│          └──────────────────┼────────────────────┘          │
-│                             │                               │
-│   ┌──────────────────────────▼──────────────────────────┐   │
-│   │              In-Memory Cache (IMemoryCache)          │   │
-│   │         Rooms · Sessions · Message Buffers           │   │
-│   └─────────────────────────────────────────────────────┘   │
+│   ┌──────────────┐   ┌──────────────────────────────────┐  │
+│   │  SignalR Hub │   │         RoomService              │  │
+│   │(RoomAssign   │   │  (Geohash decode + Haversine     │  │
+│   │    Hub)      │   │   proximity matching)            │  │
+│   └──────┬───────┘   └──────────────────────────────────┘  │
+│          │                                                  │
+│   ┌──────▼──────────────────────────────────────────────┐  │
+│   │              In-Memory State (static Dictionaries)   │  │
+│   │  _connectedUsers    · _disconnectedUsers             │  │
+│   │  _rooms             · _disconnectTimers              │  │
+│   └──────────────────────────────────────────────────────┘  │
 │                                                             │
 │   ┌─────────────────────────────────────────────────────┐   │
 │   │              wwwroot (Static Files)                  │   │
-│   │         index.html · css/ · js/                      │   │
+│   │  index.html · chat.html · css/ · js/                │   │
 │   └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -92,19 +92,19 @@ User types message
 Client sends via SignalR WebSocket
        │
        ▼
-PockittHub.SendMessage() receives payload
+RoomAssignHub.SendMessage() receives payload
        │
        ▼
-RoomEngine validates sender is member of room
+Hub validates sender is a member of a room
        │
        ▼
-Message appended to in-memory ring buffer (last 50 msgs)
+Message appended to room's in-memory list
        │
        ▼
-Hub broadcasts to all connections in SignalR Group (room)
+Hub broadcasts to all connections in SignalR Group (roomId)
        │
        ▼
-All clients receive and render message in real time
+All clients receive ReceiveMessage and render in real time
 ```
 
 ---
@@ -116,10 +116,11 @@ All clients receive and render message in real time
 | Containerization | Docker                            | Reproducible builds, single-command dev environment, prod parity          |
 | Frontend         | HTML + Tailwind CSS + TypeScript  | Static files served from `wwwroot`; utility-first CSS, strong typing      |
 | Backend          | ASP.NET Core 10                   | High-performance, built-in SignalR, serves frontend static files          |
-| Real-Time        | SignalR (WebSocket)               | Native ASP.NET integration, automatic fallback, group broadcasting        |
-| Geo              | Geohash + Haversine               | Client encodes to geohash; server decodes to lat/lng for proximity matching |
+| Real-Time        | SignalR 10 (WebSocket)            | Native ASP.NET integration, automatic fallback, group broadcasting        |
+| Build Tool       | Vite 6                            | Fast dev server with `/hub` proxy, native ES modules, TypeScript support  |
+| Geo              | Geohash + Haversine               | Client encodes to geohash; server decodes to lat/lng for proximity match  |
 | Drawing          | HTML5 Canvas API                  | Native browser support, no dependencies, direct pixel manipulation        |
-| State            | In-Memory (Dictionary)            | Ephemeral by design — static dictionaries in hub; no long-term persistence |
+| State            | In-Memory (static Dictionaries)   | Ephemeral by design — no long-term persistence; clear Redis upgrade path  |
 
 ---
 
@@ -130,56 +131,91 @@ All clients receive and render message in real time
 ```
 wwwroot/
 ├── css/
-│   └── style.css       # Tailwind-compiled stylesheet
+│   └── style.css          # Custom styles (Roboto Mono font, layout, buttons, canvas)
 ├── js/
-│   ├── geo.js          # Geolocation + geohash encoding (complete)
-│   └── app.ts          # App entry point (TypeScript, in progress)
-└── index.html
+│   ├── app.ts             # Main entry point: SignalR lifecycle, join flow, chat UI
+│   ├── art.ts             # Drawing tool module (canvas, undo/redo, send)
+│   └── geo.ts             # Geolocation acquisition + geohash encoding
+├── index.html             # Join page (username entry + location request)
+└── chat.html              # Chat page (message feed + drawing panel)
 ```
 
-> **Planned JS modules** (to be added): `signalr.js` (SignalR connection manager), `session.js` (ephemeral identity), `chat.js` (chat feed renderer), `canvas.js` (drawing tool).
+### Module Responsibilities
+
+| Module    | Role |
+|-----------|------|
+| `app.ts`  | Owns SignalR connection, join/reconnect flow, message send/receive, HTML rendering, XSS prevention |
+| `art.ts`  | Owns canvas context, pointer/touch events, undo/redo stacks, drawing controls, base64 export |
+| `geo.ts`  | Acquires browser geolocation, encodes to geohash precision 5, discards raw coordinates |
 
 ### State Management
 
-No framework required. The app uses minimal vanilla JS state:
+No framework required. The app uses minimal vanilla TypeScript state:
 
+```typescript
+// In app.ts
+let username: string = "";
+let roomId: string = "";
+
+// In art.ts
+let isDrawing = false;
+let isEraser = false;
+let undoStack: ImageData[] = [];
+let redoStack: ImageData[] = [];
 ```
-AppState {
-  sessionId: string          // ephemeral UUID
-  displayName: string        // randomly generated handle
-  roomId: string             // geohash-derived room ID
-  messages: Message[]        // bounded ring buffer, max 50
-  isDrawing: boolean         // drawing panel open/closed
-}
+
+Session persistence across navigation uses `sessionStorage`:
+
+```typescript
+sessionStorage.setItem("pockitt_username", username);
+sessionStorage.setItem("pockitt_session", sessionToken);
+sessionStorage.setItem("pockitt_roomId", roomId);
 ```
 
 ### UI Layout
 
+**Join Page (index.html):**
 ```
 ┌──────────────────────────────────────┐
-│  Pockitt          [area: Downtown]   │  ← header
-├──────────────────────────────────────┤
+│  pockitt.                            │
 │                                      │
-│  [Anon#3921]  hey                    │
-│  [Anon#7142]  what's up              │
-│  [Anon#3921]  [drawing image]        │  ← chat feed
+│  the best social experience          │
+│  is right next to you.               │
 │                                      │
-├──────────────────────────────────────┤
-│  [✏ Draw]  [____________________] →  │  ← input bar
+│  [_____________________] (username)  │
+│  [        Join         ]             │
+│                                      │
+│  tip: you'll be placed in a room     │
+│  with others nearby.                 │
 └──────────────────────────────────────┘
 ```
 
-When the draw button is pressed, a canvas overlay replaces the chat feed:
-
+**Chat Page (chat.html):**
 ```
 ┌──────────────────────────────────────┐
-│  Drawing                    [Cancel] │
+│  Room 1                     2 users  │  ← header
 ├──────────────────────────────────────┤
 │                                      │
-│           (canvas area)              │
+│  alice: hey!                         │
+│  bob: what's up                      │
+│  alice: [drawing image]              │  ← message feed
+│  ** bob joined the room **           │
 │                                      │
 ├──────────────────────────────────────┤
-│  [Clear]                    [Send]   │
+│  [Art]  [____________________] [Send]│  ← input bar
+└──────────────────────────────────────┘
+```
+
+**Drawing Panel (chat.html, toggled):**
+```
+┌──────────────────────────────────────┐
+│  [Color] [Size] [Eraser] [Undo][Redo]│
+├──────────────────────────────────────┤
+│                                      │
+│           (canvas area)              │  ← 100% width × 400px
+│                                      │
+├──────────────────────────────────────┤
+│  [Clear]            [Cancel] [Send]  │
 └──────────────────────────────────────┘
 ```
 
@@ -192,28 +228,25 @@ When the draw button is pressed, a canvas overlay replaces the chat feed:
 ```
 Pockitt/
 ├── Hubs/
-│   └── RoomAssignHub.cs       # SignalR hub (chat, drawing, session reconnect)
+│   └── RoomAssignHub.cs       # SignalR hub (Join, SendMessage, SendArt, disconnect lifecycle)
 ├── Models/
-│   ├── Message.cs             # Message + MessageType enum (Text/Art/Game)
-│   ├── Room.cs                # Room model (Id, Name, Geohash, Users, Messages)
-│   └── User.cs                # User model (ConnectionId, SessionToken, Username, Geohash, RoomId)
+│   ├── Message.cs             # Message + MessageType enum (Text / Art / Game)
+│   ├── Room.cs                # Room (Id, Name, Geohash, Users, Messages)
+│   └── User.cs                # User (ConnectionId, SessionToken, Username, UserNameColor, Geohash, RoomId)
 ├── Services/
-│   └── RoomService.cs         # Geohash decode + Haversine proximity room matching
-├── wwwroot/                   # Frontend static files
-│   ├── css/
-│   │   └── style.css
-│   ├── js/
-│   │   ├── geo.js
-│   │   └── app.ts
-│   └── index.html
-└── Program.cs
+│   └── RoomService.cs         # Geohash decode + Haversine proximity room matching + room lifecycle
+├── wwwroot/                   # Frontend static files (served by ASP.NET Core)
+└── Program.cs                 # Service registration and middleware pipeline
 ```
 
 ### Program.cs Bootstrap
 
 ```csharp
 builder.Services.AddSingleton<RoomService>();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10MB
+});
 
 app.UseDefaultFiles(); // Serves index.html by default
 app.UseStaticFiles();  // Serves wwwroot/
@@ -226,38 +259,46 @@ app.MapHub<RoomAssignHub>("/hub");
 
 ### Transport: SignalR over WebSocket
 
-All real-time events flow through a single SignalR hub (`RoomAssignHub`). Clients connect once on page load and remain connected for the session duration.
+All real-time events flow through a single SignalR hub (`RoomAssignHub`). Clients connect once on page load and remain connected for the session duration. `withAutomaticReconnect()` is enabled on the client to handle transient network failures.
 
-### Hub Methods
+### Hub Methods (Client → Server)
 
-| Direction          | Method                          | Payload                                           | Description                              |
-|--------------------|---------------------------------|---------------------------------------------------|------------------------------------------|
-| Client → Server    | `Join(username, geohash, sessionToken?)` | `string, string, string?`          | Assigns client to a proximity-matched room |
-| Client → Server    | `SendMessage(content)`          | `string content`                                  | Broadcasts text message to room          |
-| Client → Server    | `SendArt(artData)`              | `string base64`                                   | Broadcasts drawing image to room         |
-| Server → Client    | `RoomJoined`                    | `{ roomId, roomName, userCount, sessionToken, reconnected }` | Room info on join or reconnect |
-| Server → Client    | `ReceiveMessage`                | `{ username, content, timestamp, type }`          | Delivers message to all in room          |
-| Server → Client    | `UserJoined`                    | `{ username, userCount }`                         | Notifies room of new participant         |
-| Server → Client    | `UserLeft`                      | `{ username, userCount }`                         | Notifies room of departed participant    |
+| Method                              | Payload                | Description                                    |
+|-------------------------------------|------------------------|------------------------------------------------|
+| `Join(username, geohash, sessionToken?)` | `string, string, string?` | Assigns client to a proximity-matched room. If `sessionToken` matches a disconnected user, restores them. |
+| `SendMessage(content)`              | `string`               | Broadcasts text message to room                |
+| `SendArt(artData)`                  | `string` (base64 PNG)  | Broadcasts drawing image to room               |
+
+### Server Events (Server → Client)
+
+| Event              | Payload                                                          | Description                                    |
+|--------------------|------------------------------------------------------------------|------------------------------------------------|
+| `RoomJoined`       | `{ roomId, roomName, userCount, sessionToken, reconnected }`     | Sent to joining client on join or reconnect    |
+| `ReceiveMessage`   | `{ username, content, timestamp, type: "text" \| "art" }`       | Delivers message to all clients in room        |
+| `UserJoined`       | `{ username, userCount }`                                        | Broadcast to room when a new user joins        |
+| `UserLeft`         | `{ username, userCount }`                                        | Broadcast when a user's grace period expires   |
+| `UserDisconnected` | `{ username, userCount }`                                        | Broadcast immediately when a user drops        |
+| `UserRejoined`     | `{ username, userCount }`                                        | Broadcast when a user restores within grace period |
 
 ### Connection Lifecycle
 
 ```
 Client connects → Join(username, geohash, sessionToken?)
-  └─ If sessionToken matches disconnected user:
+  └─ If sessionToken matches _disconnectedUsers:
        └─ Cancel 5-minute removal timer
        └─ Restore user to their room → RoomJoined (reconnected: true)
+       └─ Broadcast UserRejoined to room
   └─ If new user:
-       └─ RoomService finds closest room within ~100m (one football field)
-       └─ Falls back to absolute closest room with space if none nearby
-       └─ Creates new room if no rooms exist
-       └─ RoomJoined (reconnected: false) + UserJoined broadcast to room
+       └─ RoomService.GetOrCreateRoomForUser() → proximity matching
+       └─ Add to SignalR group keyed by roomId
+       └─ RoomJoined (reconnected: false) + UserJoined to room
 
 OnDisconnectedAsync()
-  └─ Move user to disconnected map
-  └─ Start 5-minute grace period timer
-  └─ If timer expires → remove user from room, broadcast UserLeft
-  └─ If user reconnects within 5 min → timer cancelled, user restored
+  └─ Move user from _connectedUsers to _disconnectedUsers
+  └─ Broadcast UserDisconnected to room
+  └─ Start 5-minute CancellationTokenSource timer
+       └─ If timer fires → RemoveUser() + broadcast UserLeft
+       └─ If user reconnects → timer cancelled, session restored
 ```
 
 ---
@@ -266,27 +307,28 @@ OnDisconnectedAsync()
 
 ### Geohash-Based Partitioning
 
-Rooms are derived from the client's coarse GPS coordinates encoded as a **Geohash** at precision level **5** (approximately 5km × 5km cells). This provides neighborhood-level proximity without exposing exact location.
+Rooms are derived from the client's coarse GPS coordinates encoded as a **Geohash at precision level 5** (approximately 5 km × 5 km cells). This provides neighborhood-level proximity without exposing exact location.
 
 ```
 User GPS: 37.7749° N, 122.4194° W  (San Francisco)
-Geohash (level 5): 9q8yy
-→ Room ID: room:9q8yy
+Geohash (precision 5): 9q8yy
+→ Room candidates with geohash ~= 9q8yy are searched first
 ```
 
 ### Room Service
 
 `RoomService` manages room creation and user matching using a two-pass proximity strategy:
 
-1. **Nearby pass** — find any room within **~100 meters** (~0.062 miles, one football field) that has space
+1. **Nearby pass** — find any room within **~100 meters** (~0.062 miles, one football field) that has space (`< MaxRoomSize`)
 2. **Fallback pass** — if no nearby room exists, use the absolute closest room with available space
 3. **Create** — if no rooms exist at all, create a new room keyed by the user's geohash
 
-Geohash strings are decoded server-side to approximate lat/lng (center of the ~5km bounding box) using a BASE32 decoder. Distance is then calculated via the Haversine formula.
+Geohash strings are decoded server-side to approximate lat/lng (center of the ~5 km bounding box) using a BASE32 decoder. Distance is then calculated via the **Haversine formula**.
 
 ```csharp
 private const double ProximityThresholdMiles = 0.062; // ~100m / one football field
 private const int MaxRoomSize = 10;
+private static readonly TimeSpan EmptyRoomLifetime = TimeSpan.FromMinutes(5);
 ```
 
 ### Room Lifecycle
@@ -295,8 +337,9 @@ private const int MaxRoomSize = 10;
 Room Created  ──→  Active (users present)  ──→  All users disconnect
                                                         │
                                                5-minute grace period
-                                                        │
-                                          Room removed from memory
+                       User reconnects ←──── (CancellationTokenSource)
+                       (timer cancelled)               │
+                                               Timer fires → Room removed from memory
 ```
 
 Empty rooms are scheduled for removal after **5 minutes** using a `CancellationTokenSource` timer. If a user reconnects within that window, the timer is cancelled and the room is preserved.
@@ -308,13 +351,19 @@ Empty rooms are scheduled for removal after **5 minutes** using a `CancellationT
 ### Canvas Pipeline
 
 ```
-User draws on <canvas>
+User draws on <canvas> (mouse or touch)
         │
         ▼
-canvas.js captures pointer events (mousedown, mousemove, mouseup, touch*)
+art.ts captures pointer events (mousedown, mousemove, mouseup, touch*)
         │
         ▼
-Canvas 2D context renders strokes in real time (black ink, 3px line width)
+Canvas 2D context renders strokes in real time
+  └─ stroke color from #brush-color input
+  └─ line width from #brush-size input (1–40px)
+  └─ eraser via composite operation (destination-out)
+        │
+        ▼
+saveSnapshot() → stores ImageData in undoStack after each stroke
         │
         ▼
 User taps "Send"
@@ -323,7 +372,7 @@ User taps "Send"
 canvas.toDataURL("image/png")  →  base64 string
         │
         ▼
-SignalR SendDrawing(base64) → hub → broadcast to room
+connection.invoke("SendArt", base64) → hub → Clients.Group(roomId).SendAsync(...)
         │
         ▼
 Receivers: <img src="data:image/png;base64,..."> rendered in chat feed
@@ -331,62 +380,54 @@ Receivers: <img src="data:image/png;base64,..."> rendered in chat feed
 
 ### Canvas Configuration
 
-| Property        | Value                     |
-|-----------------|---------------------------|
-| Resolution      | 600 × 400px logical       |
-| Stroke color    | `#1a1a1a` (near-black)    |
-| Stroke width    | 3px                       |
-| Background      | White (`#ffffff`)         |
-| Export format   | PNG via `toDataURL`       |
-| Max payload     | ~150KB (enforced server-side) |
+| Property        | Value                                         |
+|-----------------|-----------------------------------------------|
+| Width           | 100% of container (responsive)                |
+| Height          | 400px                                         |
+| Stroke color    | User-selected via color picker (default black)|
+| Stroke width    | User-selected 1–40px slider                   |
+| Background      | White (`#ffffff`)                             |
+| Export format   | PNG via `canvas.toDataURL("image/png")`       |
+| Undo depth      | Unlimited (full ImageData stack)              |
+| Redo depth      | Unlimited (full ImageData stack)              |
+| Touch support   | Yes (touch events mapped to canvas coords)    |
+| Max payload     | ~150 KB (enforced server-side)                |
 
 ### Server-Side Validation
 
 ```csharp
-// ImageController.cs or hub validation
-if (imageData.Length > 200_000) // ~150KB base64
+// In RoomAssignHub.SendArt()
+if (string.IsNullOrEmpty(artData) || artData.Length > 200_000)
     throw new HubException("Drawing payload exceeds size limit.");
-
-if (!imageData.StartsWith("data:image/png;base64,"))
-    throw new HubException("Invalid image format.");
 ```
 
 ---
 
 ## 9. Anonymous Identity System
 
-### Identity Generation
+### Identity Flow
 
-On first page load, the client generates a session identity stored in `sessionStorage` (clears on tab close):
+On the join page, the user enters a custom display name (up to 20 characters). On `Join()`, the server generates a `SessionToken` (UUIDv4) and returns it to the client, which stores it in `sessionStorage`.
 
-```js
-// session.js
-export function getOrCreateSession() {
-  let session = sessionStorage.getItem('pockitt_session');
-  if (!session) {
-    session = JSON.stringify({
-      id: crypto.randomUUID(),
-      displayName: generateName() // e.g., "Anon#4821"
-    });
-    sessionStorage.setItem('pockitt_session', session);
-  }
-  return JSON.parse(session);
-}
-
-function generateName() {
-  return `Anon#${Math.floor(1000 + Math.random() * 9000)}`;
-}
+```typescript
+// In app.ts — after RoomJoined event
+sessionStorage.setItem("pockitt_session", data.sessionToken);
+sessionStorage.setItem("pockitt_username", username);
+sessionStorage.setItem("pockitt_roomId", data.roomId);
 ```
+
+On navigation to `chat.html`, the stored values are read and `Join()` is invoked automatically, with the session token passed for potential reconnection.
 
 ### Identity Properties
 
-| Property      | Value                            | Lifetime         |
-|---------------|----------------------------------|------------------|
-| `id`          | `crypto.randomUUID()` (UUIDv4)   | Tab session      |
-| `displayName` | `Anon#XXXX`                      | Tab session      |
-| Server record | `ConnectionId → SessionId` map   | SignalR lifetime |
+| Property       | Value                              | Lifetime           |
+|----------------|------------------------------------|--------------------|
+| `username`     | User-entered string (max 20 chars) | Tab session        |
+| `sessionToken` | `Guid.NewGuid()` (UUIDv4)          | Tab session        |
+| Server record  | `_connectedUsers[connectionId]`    | SignalR connection |
+| Disconnected   | `_disconnectedUsers[sessionToken]` | 5-minute grace     |
 
-The server never stores display names or session IDs beyond the active WebSocket connection. No database writes occur for identity.
+The server never stores display names or session tokens beyond the active connection and the 5-minute reconnection window. No database writes occur for identity.
 
 ---
 
@@ -400,8 +441,14 @@ public class User
     public string ConnectionId { get; set; } = string.Empty;
     public string SessionToken { get; set; } = Guid.NewGuid().ToString();
     public string Username { get; set; } = string.Empty;
+    public NameColor UserNameColor { get; set; } = NameColor.Default;
     public string Geohash { get; set; } = string.Empty;
     public string RoomId { get; set; } = string.Empty;
+}
+
+public enum NameColor
+{
+    Default, Red, Green, Blue, Yellow, Orange, Purple, Pink, Brown
 }
 ```
 
@@ -438,10 +485,9 @@ public class Message
 
 ### REST Endpoints
 
-| Method | Path              | Description                                  |
-|--------|-------------------|----------------------------------------------|
-| `GET`  | `/api/health`     | Health check for container orchestration     |
-| `GET`  | `/api/room/info?geohash=9q8yy` | Returns room metadata (participant count) |
+| Method | Path          | Description                              |
+|--------|---------------|------------------------------------------|
+| `GET`  | `/api/health` | Health check for container orchestration |
 
 ### SignalR Hub Endpoint
 
@@ -453,12 +499,10 @@ All chat and drawing events are transported exclusively over this WebSocket conn
 
 ### Error Codes
 
-| Code | Meaning                          |
-|------|----------------------------------|
-| `INVALID_GEOHASH`  | Geohash precision not level 5 |
-| `PAYLOAD_TOO_LARGE` | Drawing exceeds 150KB         |
-| `INVALID_FORMAT`   | Image data not valid PNG base64 |
-| `NOT_IN_ROOM`      | Message sent before JoinRoom    |
+| Code              | Meaning                               |
+|-------------------|---------------------------------------|
+| `PAYLOAD_TOO_LARGE` | Drawing exceeds 150 KB              |
+| `NOT_IN_ROOM`     | Message sent before `Join()` completes |
 
 ---
 
@@ -466,16 +510,16 @@ All chat and drawing events are transported exclusively over this WebSocket conn
 
 ### Threat Model
 
-| Threat                         | Mitigation                                              |
-|--------------------------------|---------------------------------------------------------|
-| Message flooding / spam        | Server-side rate limit: 10 messages / 10s per connection |
-| Oversized drawing payloads     | Hard cap at 150KB, validated on hub receive             |
-| XSS via message content        | All text rendered via `textContent`, never `innerHTML`  |
-| Exact location exposure        | Geohash level 5 (~5km cell) — never store raw GPS       |
-| Session hijacking              | `sessionStorage` cleared on tab close, UUIDv4 unguessable |
-| Room enumeration               | Room IDs are geohashes; no listing endpoint             |
+| Threat                        | Mitigation                                                    |
+|-------------------------------|---------------------------------------------------------------|
+| Oversized drawing payloads    | Hard cap at ~150 KB, validated on hub receive                 |
+| XSS via message content       | All text rendered via `textContent`, never `innerHTML`; `escapeHtml()` wrapper for dynamic HTML |
+| Exact location exposure       | Geohash precision 5 (~5 km cell) — raw GPS never sent to server |
+| Session hijacking             | `sessionStorage` cleared on tab close; UUIDv4 tokens are unguessable |
+| Room enumeration              | Room IDs are GUIDs; no listing endpoint                       |
+| Message flooding / spam       | Rate limiting planned (Phase 4)                               |
 
-### Headers (ASP.NET Middleware)
+### Recommended Headers (ASP.NET Middleware)
 
 ```csharp
 app.Use(async (ctx, next) => {
@@ -489,10 +533,10 @@ app.Use(async (ctx, next) => {
 
 ### Data Retention Policy
 
-- **Messages:** In-memory ring buffer, max 50 per room. Lost on process restart.
-- **Sessions:** Tied to SignalR connection lifetime only.
+- **Messages:** In-memory list, per room. Lost on process restart.
+- **Sessions:** Tied to SignalR connection lifetime + 5-minute reconnect window.
 - **Drawings:** Transmitted as base64 payloads, never written to disk.
-- **Location:** Encoded to geohash precision 5, raw coordinates never leave the client.
+- **Location:** Encoded to geohash precision 5 client-side; raw coordinates never leave the browser.
 
 ---
 
@@ -500,7 +544,7 @@ app.Use(async (ctx, next) => {
 
 ### Container Architecture
 
-A single ASP.NET Core container serves both the API and the frontend static files from `wwwroot`. No separate frontend container or reverse proxy required.
+A single ASP.NET Core container serves both the API and the frontend static files from `wwwroot`. The TypeScript frontend must be compiled by Vite before the Docker build (or as part of a multi-stage build that includes Node.js).
 
 ### Dockerfile (Multi-Stage)
 
@@ -522,12 +566,14 @@ ENTRYPOINT ["dotnet", "Pockitt.dll"]
 ### Local Development
 
 ```bash
-# Build and run
-docker build -t pockitt .
-docker run -p 5000:8080 pockitt
+# Terminal 1 — backend (ASP.NET Core)
+dotnet run --project Pockitt/
 
-# App:     http://localhost:5000
-# SignalR: ws://localhost:5000/hub
+# Terminal 2 — frontend (Vite dev server with /hub proxy)
+npm run dev
+
+# App:     http://localhost:5173
+# SignalR: ws://localhost:5173/hub  (proxied to localhost:5290)
 ```
 
 ---
@@ -536,43 +582,43 @@ docker run -p 5000:8080 pockitt
 
 ### Horizontal Scaling Considerations
 
-The default in-memory `IMemoryCache` is **not shared across instances**. For multi-instance deployments:
+The in-memory state (`_rooms`, `_connectedUsers`, etc.) uses static dictionaries and is **not shared across instances**. For multi-instance deployments:
 
-| Concern                 | Single Instance | Multi-Instance                             |
-|-------------------------|-----------------|--------------------------------------------|
-| Room state              | In-memory       | Redis backplane required                   |
-| SignalR groups          | In-memory       | Redis SignalR backplane                    |
-| Session tracking        | In-memory       | Sticky sessions OR Redis                   |
+| Concern              | Single Instance | Multi-Instance                      |
+|----------------------|-----------------|-------------------------------------|
+| Room state           | In-memory       | Redis backplane required            |
+| SignalR groups       | In-memory       | Redis SignalR backplane             |
+| Session tracking     | In-memory       | Sticky sessions OR Redis            |
 
-For V1, single-instance deployment is the target. Scaling path is clear.
+For V1, single-instance deployment is the target. The scaling path to Redis is clear.
 
 ### Performance Targets
 
-| Metric                        | Target          |
-|-------------------------------|-----------------|
-| Message end-to-end latency    | < 100ms (p99)   |
-| Page load to first interaction | < 2s           |
-| Concurrent users per instance | ~1,000          |
-| Drawing payload transit time  | < 300ms (p95)   |
-| Room eviction after idle      | 30 minutes      |
+| Metric                         | Target        |
+|--------------------------------|---------------|
+| Message end-to-end latency     | < 100ms (p99) |
+| Page load to first interaction | < 2s          |
+| Concurrent users per instance  | ~1,000        |
+| Drawing payload transit time   | < 300ms (p95) |
+| Room eviction after idle       | 5 minutes     |
 
-### Message Buffer Strategy
+### Message Buffer
 
-Each room maintains a **ring buffer of 50 messages** in memory. New connections joining a room receive the last 50 messages as backfill. This avoids cold-room UX without requiring a database.
+Each room maintains an in-memory `List<Message>`. New connections joining a room could receive recent messages as backfill (planned). This avoids cold-room UX without requiring a database.
 
 ---
 
 ## 15. Non-Functional Requirements
 
-| Category      | Requirement                                                            |
-|---------------|------------------------------------------------------------------------|
-| Availability  | 99.5% uptime target for single-instance V1                             |
-| Latency       | P99 message delivery < 100ms on local network                          |
-| Privacy       | Zero PII collection, zero long-term storage, GDPR-compatible by design |
-| Accessibility | WCAG 2.1 AA for text UI elements                                       |
-| Browser Support | Last 2 versions of Chrome, Firefox, Safari, Edge                    |
-| Mobile        | Responsive layout, touch support on drawing canvas                     |
-| Observability | Structured logging via `ILogger`, `/api/health` liveness probe         |
+| Category       | Requirement                                                            |
+|----------------|------------------------------------------------------------------------|
+| Availability   | 99.5% uptime target for single-instance V1                             |
+| Latency        | P99 message delivery < 100ms on local network                          |
+| Privacy        | Zero PII collection, zero long-term storage, GDPR-compatible by design |
+| Accessibility  | WCAG 2.1 AA for text UI elements                                       |
+| Browser Support | Last 2 versions of Chrome, Firefox, Safari, Edge                     |
+| Mobile         | Responsive layout, touch support on drawing canvas                     |
+| Observability  | Structured logging via `ILogger`, `/api/health` liveness probe         |
 
 ---
 
@@ -581,33 +627,41 @@ Each room maintains a **ring buffer of 50 messages** in memory. New connections 
 ### Phase 1 — Foundation
 - [x] Single ASP.NET Core project scaffold (`Hubs/`, `Models/`, `Services/`, `wwwroot/`)
 - [x] SignalR registered and `/hub` endpoint mapped
-- [x] `app.ts` TypeScript entry point placeholder in `wwwroot/js/`
-- [ ] `wwwroot/index.html` populated with Tailwind CSS layout
-- [ ] `/hub` WebSocket connection established end-to-end
-- [ ] Ephemeral session identity (client-side UUID + display name)
-- [ ] Docker single-container build and run
+- [x] `Program.cs` service registration with `RoomService` singleton and 10 MB SignalR limit
+- [x] `index.html` join page with username input
+- [x] `chat.html` chat page with message feed and input bar
+- [x] Vite dev server with `/hub` proxy to ASP.NET backend
+- [x] TypeScript configuration (`tsconfig.json`, `vite.config.ts`)
 
 ### Phase 2 — Core Features
-- [x] Geolocation acquisition + geohash encoding (`geo.js`)
-- [x] `RoomService` — geohash decode + proximity-based room matching (server)
+- [x] Geolocation acquisition + geohash encoding (`geo.ts`)
+- [x] `RoomService` — geohash decode + Haversine proximity room matching
 - [x] `Join` / `SendMessage` / `SendArt` hub methods
-- [ ] Chat feed UI with message rendering
-- [ ] Room participant count display
+- [x] `RoomJoined`, `ReceiveMessage`, `UserJoined`, `UserLeft`, `UserDisconnected`, `UserRejoined` events
+- [x] Session token generation and `sessionStorage` persistence
+- [x] Auto-join from `chat.html` using stored session
+- [x] Chat feed UI with text and art message rendering
+- [x] Room name and participant count display in header
+- [x] System messages for join/leave/disconnect/rejoin events
 
 ### Phase 3 — Drawing Tool
-- [ ] HTML5 Canvas drawing surface (pointer + touch events)
-- [ ] Stroke rendering, clear, undo
-- [ ] `SendDrawing` hub method (base64 PNG)
-- [ ] Drawing message rendering in chat feed
-- [ ] Server-side payload validation
+- [x] HTML5 Canvas drawing surface (pointer + touch events)
+- [x] Color picker, brush size slider (1–40px)
+- [x] Eraser mode
+- [x] Undo / redo stacks (`ImageData` snapshots)
+- [x] Clear canvas
+- [x] `SendArt` hub method (base64 PNG)
+- [x] Drawing message rendering in chat feed as `<img>`
+- [x] Server-side payload size validation
 
 ### Phase 4 — Hardening
-- [ ] Rate limiting middleware
-- [ ] Security headers
-- [ ] Message ring buffer backfill on join
-- [ ] Idle room eviction
-- [ ] Error states and reconnection logic (SignalR auto-reconnect)
-- [ ] Health check endpoint
+- [ ] Rate limiting middleware (10 messages / 10s per connection)
+- [ ] Security headers middleware (CSP, X-Frame-Options, X-Content-Type-Options)
+- [ ] Message ring buffer backfill on join (last 50 messages)
+- [ ] Health check endpoint (`/api/health`)
+- [ ] `UserNameColor` selection in UI
+- [ ] Comprehensive unit, integration, and E2E test coverage
+- [ ] Docker multi-stage build with Node.js frontend compilation
 
 ---
 
