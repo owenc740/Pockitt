@@ -1,6 +1,7 @@
 # Pockitt
 <img width="1425" height="1002" alt="image" src="https://github.com/user-attachments/assets/935bcecd-c896-4a36-a6d0-e0f6024add71" />
 
+## First Place Winner
 [Awarded first place at Hack@URI 2026 (Creative Currents Track)](https://devpost.com/software/pockitt)
 
 ## What is Pockitt?
