@@ -50,34 +50,34 @@ Pockitt is built on a single conviction: **the best social experience is the one
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Client (Browser)                      │
+│                        Client (Browser)                     │
 │                                                             │
-│   ┌──────────────┐   ┌──────────────┐   ┌───────────────┐  │
-│   │  Chat UI     │   │ Drawing Tool │   │ Geo + Session │  │
-│   │ (Tailwind)   │   │ (Canvas API) │   │   Manager     │  │
-│   └──────┬───────┘   └──────┬───────┘   └───────┬───────┘  │
+│   ┌──────────────┐   ┌──────────────┐   ┌───────────────┐   │
+│   │  Chat UI     │   │ Drawing Tool │   │ Geo + Session │   │
+│   │ (Tailwind)   │   │ (Canvas API) │   │   Manager     │   │
+│   └──────┬───────┘   └──────┬───────┘   └───────┬───────┘   │
 │          │                  │                    │          │
 │          └──────────────────┼────────────────────┘          │
-│                             │ WebSocket (SignalR)            │
-└─────────────────────────────┼─────────────────────────────┘
+│                             │ WebSocket (SignalR)           │
+└─────────────────────────────┼───────────────────────────────┘
                               │
-┌─────────────────────────────▼─────────────────────────────┐
+┌─────────────────────────────▼───────────────────────────────┐
 │                     ASP.NET Core Backend                    │
 │                                                             │
-│   ┌──────────────┐   ┌──────────────────────────────────┐  │
-│   │  SignalR Hub │   │         RoomService              │  │
-│   │(RoomAssign   │   │  (Geohash decode + Haversine     │  │
-│   │    Hub)      │   │   proximity matching)            │  │
-│   └──────┬───────┘   └──────────────────────────────────┘  │
+│   ┌──────────────┐   ┌──────────────────────────────────┐   │
+│   │  SignalR Hub │   │         RoomService              │   │
+│   │(RoomAssign   │   │  (Geohash decode + Haversine     │   │
+│   │    Hub)      │   │   proximity matching)            │   │
+│   └──────┬───────┘   └──────────────────────────────────┘   │
 │          │                                                  │
-│   ┌──────▼──────────────────────────────────────────────┐  │
+│   ┌──────▼───────────────────────────────────────────────┐  │
 │   │              In-Memory State (static Dictionaries)   │  │
 │   │  _connectedUsers    · _disconnectedUsers             │  │
 │   │  _rooms             · _disconnectTimers              │  │
 │   └──────────────────────────────────────────────────────┘  │
 │                                                             │
 │   ┌─────────────────────────────────────────────────────┐   │
-│   │              wwwroot (Static Files)                  │   │
+│   │              wwwroot (Static Files)                 │   │
 │   │  index.html · chat.html · css/ · js/                │   │
 │   └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
@@ -499,9 +499,9 @@ All chat and drawing events are transported exclusively over this WebSocket conn
 
 ### Error Codes
 
-| Code              | Meaning                               |
-|-------------------|---------------------------------------|
-| `PAYLOAD_TOO_LARGE` | Drawing exceeds 150 KB              |
+| Code              | Meaning                                |
+|-------------------|----------------------------------------|
+| `PAYLOAD_TOO_LARGE` | Drawing exceeds 150 KB               |
 | `NOT_IN_ROOM`     | Message sent before `Join()` completes |
 
 ---
@@ -510,14 +510,14 @@ All chat and drawing events are transported exclusively over this WebSocket conn
 
 ### Threat Model
 
-| Threat                        | Mitigation                                                    |
-|-------------------------------|---------------------------------------------------------------|
-| Oversized drawing payloads    | Hard cap at ~150 KB, validated on hub receive                 |
+| Threat                        | Mitigation                                                                                      |
+|-------------------------------|-------------------------------------------------------------------------------------------------|
+| Oversized drawing payloads    | Hard cap at ~150 KB, validated on hub receive                                                   |
 | XSS via message content       | All text rendered via `textContent`, never `innerHTML`; `escapeHtml()` wrapper for dynamic HTML |
-| Exact location exposure       | Geohash precision 5 (~5 km cell) — raw GPS never sent to server |
-| Session hijacking             | `sessionStorage` cleared on tab close; UUIDv4 tokens are unguessable |
-| Room enumeration              | Room IDs are GUIDs; no listing endpoint                       |
-| Message flooding / spam       | Rate limiting planned (Phase 4)                               |
+| Exact location exposure       | Geohash precision 5 (~5 km cell) — raw GPS never sent to server                                 |
+| Session hijacking             | `sessionStorage` cleared on tab close; UUIDv4 tokens are unguessable                            |
+| Room enumeration              | Room IDs are GUIDs; no listing endpoint                                                         |
+| Message flooding / spam       | Rate limiting planned (Phase 4)                                                                 |
 
 ### Recommended Headers (ASP.NET Middleware)
 
@@ -616,7 +616,7 @@ Each room maintains an in-memory `List<Message>`. New connections joining a room
 | Latency        | P99 message delivery < 100ms on local network                          |
 | Privacy        | Zero PII collection, zero long-term storage, GDPR-compatible by design |
 | Accessibility  | WCAG 2.1 AA for text UI elements                                       |
-| Browser Support | Last 2 versions of Chrome, Firefox, Safari, Edge                     |
+| Browser Support | Last 2 versions of Chrome, Firefox, Safari, Edge                      |
 | Mobile         | Responsive layout, touch support on drawing canvas                     |
 | Observability  | Structured logging via `ILogger`, `/api/health` liveness probe         |
 
