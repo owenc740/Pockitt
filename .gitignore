@@ -9,6 +9,10 @@ obj/
 node_modules/
 npm-debug.log
 
+# Dev container generated
+dotnet/
+.devcontainer/devcontainer-lock.json
+
 # TypeScript
 dist/
 *.js.map
