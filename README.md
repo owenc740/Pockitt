@@ -31,6 +31,7 @@ Pockitt runs inside a Docker dev container, so you don't need to install .NET or
 Pockitt needs two processes running at the same time: the ASP.NET Core backend and the Vite dev server. Open two terminals in the container.
 
 Terminal 1 (backend): "dotnet run --project Pockitt"
+
 Terminal 2 (frontend): "npm run dev"
 
 Then open the forwarded **5173** port (Vite). The dev server proxies real-time traffic to the backend automatically, so you always visit 5173, not 5290.
